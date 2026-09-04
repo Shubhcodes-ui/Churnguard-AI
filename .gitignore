@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment files
+.env
+*.env
+*.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# ML model artifacts
+ml_models/*.pkl
+ml_models/*.joblib
+ml_models/*.txt
+
+# Uploads & Temp files
+uploads/
+uploads/*.csv
+**/uploads/*.csv
+data/uploads/
+scratch/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+
+# Old prototype files
+app.py
+models/churn_model.pkl
+templates/
+static/
+churn-ai-app-main/
+churn-ai-backend/
+
