@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChurnGuard AI — E-Commerce Churn Intelligence</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Component Specific Light Theme Overrides */
+        .upload-hero-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: 3.5rem;
+            text-align: center;
+            max-width: 900px;
+            margin: 2rem auto;
+        }
+
+        .upload-dropzone {
+            border: 2px dashed var(--brand-border);
+            border-radius: var(--radius-md);
+            padding: 3.5rem 2rem;
+            background: var(--brand-light);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 2rem 0;
+        }
+
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--brand);
+            background: #E0EDFF;
+        }
+
+        .chart-box {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .chart-title-text {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Segment Badges */
+        .segment-pill-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        .seg-card {
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+            border: 1px solid transparent;
+        }
+
+        .seg-card.high { background: var(--risk-bg); border-color: var(--risk-border); }
+        .seg-card.medium { background: var(--risk-medium-bg); border-color: var(--risk-medium-border); }
+        .seg-card.low { background: var(--safe-bg); border-color: var(--safe-border); }
+        .seg-card.loyal { background: var(--loyal-bg); border-color: var(--loyal-border); }
+
+        .seg-num {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0.25rem 0;
+        }
+
+        .seg-num.high { color: var(--risk-text); }
+        .seg-num.medium { color: var(--risk-medium-text); }
+        .seg-num.low { color: var(--safe-text); }
+        .seg-num.loyal { color: var(--loyal-text); }
+
+        .rec-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--brand);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.85rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .rec-card.high { border-left-color: var(--risk); }
+        .rec-card.medium { border-left-color: var(--risk-medium); }
+        .rec-card.low { border-left-color: var(--safe); }
+        .rec-card.loyal { border-left-color: var(--brand); }
+
+        .rec-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .rec-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+        .rec-impact { font-size: 0.8rem; font-weight: 700; color: var(--safe); margin-top: 0.4rem; }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-card {
+            background: #FFFFFF;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 650px;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-icon">⚡</div>
+                <span>ChurnGuard AI</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" onclick="scrollToSection('dashboardSection')">
+                    <span>📊</span> Executive Dashboard
+                </a>
+                <a class="nav-item" onclick="scrollToSection('explorerSection')">
+                    <span>🔍</span> Customer Explorer
+                </a>
+                <a class="nav-item" onclick="toggleSimModal()">
+                    <span>⚡</span> Instant Simulation
+                </a>
+                <a class="nav-item" onclick="scrollToSection('retrainSection')">
+                    <span>🧠</span> Model Comparison
+                </a>
+                <a class="nav-item" onclick="resetToUpload()" style="margin-top: 2rem; color: var(--brand);">
+                    <span>📁</span> Upload New CSV
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN WRAPPER -->
+        <main class="main-wrapper">
+            <!-- UPLOAD SECTION (When no dataset uploaded) -->
+            <div id="uploadPage" style="display: {% if summary and summary.uploaded %}none{% else %}block{% endif %};">
+                <div class="upload-hero-card">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                    <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em;">
+                        Upload Customer Dataset
+                    </h1>
+                    <p style="color: var(--text-muted); font-size: 1.05rem; margin-top: 0.5rem;">
+                        Upload any CSV dataset. Our engine automatically detects target churn columns, encodes features, and fits a Scikit-Learn Random Forest model.
+                    </p>
+
+                    <div class="upload-dropzone" id="uploadZone">
+                        <input type="file" id="fileInput" style="display:none;" accept=".csv">
+                        <div id="uploadPrompt">
+                            <div style="font-size: 2.5rem; color: var(--brand); margin-bottom: 0.5rem;">☁️</div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary);">Click or drag & drop CSV file here</h3>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem;">Supports Telco, E-Commerce, SaaS, & Retail CSV schemas</p>
+                        </div>
+                        <div id="fileInfo" style="display: none; align-items: center; justify-content: center; gap: 1rem;">
+                            <span id="fileName" class="mono-num" style="font-weight: 700; color: var(--brand); font-size: 1.1rem;"></span>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Change File</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="analyzeBtn" style="padding: 0.85rem 3rem; font-size: 1.05rem;" disabled>
+                        <span>Analyze & Generate Dashboard</span>
+                    </button>
+
+                    <div id="uploadSpinner" style="display: none; margin-top: 1.5rem; color: var(--brand); font-weight: 600;">
+                        <div class="spinner-sm" style="display: inline-block; border-color: var(--brand-border); border-top-color: var(--brand); margin-right: 0.5rem;"></div>
+                        <span>Preprocessing dataset & training Random Forest model...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD SECTION -->
+            <div id="dashboardPage" style="display: {% if summary and summary.uploaded %}block{% else %}none{% endif %};">
+                
+                <!-- TOP HERO REVENUE & CHURN GAUGE BANNER -->
+                <div class="hero-revenue-banner" id="dashboardSection">
+                    <div>
+                        <div class="hero-revenue-label">Estimated Revenue at Risk</div>
+                        <div class="hero-revenue-amount" id="valRevenueLoss">
+                            ₹{% if summary and summary.revenue_loss %}{{ "{:,.2f}".format(summary.revenue_loss) }}{% else %}0.00{% endif %}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                        <div class="churn-gauge-pill">
+                            <div class="churn-gauge-value" id="valChurnRate">
+                                {{ summary.churn_rate if summary else 0 }}%
+                            </div>
+                            <div class="churn-gauge-text">
+                                <div style="font-weight: 700; color: var(--text-primary);">Overall Churn Rate</div>
+                                <div id="valChurnSubtitle">Computed across dataset</div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button class="btn btn-secondary" onclick="triggerRetrain()" id="retrainTopBtn">
+                                🔄 Retrain Model
+                            </button>
+                            <button class="btn btn-primary" onclick="toggleSimModal()">
+                                ⚡ Simulate Activity
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STAT CARDS GRID -->
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Customers <span>👥</span></div>
+                        <div class="stat-value brand" id="valTotal">{{ summary.total if summary else 0 }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">High Risk Customers <span>🔴</span></div>
+                        <div class="stat-value risk" id="valHighRisk">{{ summary.high_risk if summary else 0 }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Medium Risk Customers <span>🟡</span></div>
+                        <div class="stat-value medium" id="valMedRisk">{{ summary.medium_risk if summary else 0 }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Loyal Champions <span>⭐</span></div>
+                        <div class="stat-value safe" id="valLoyal">{{ summary.loyal if summary else 0 }}</div>
+                    </div>
+                </div>
+
+                <!-- CHARTS ROW 1 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="chart-box">
+                        <div class="chart-header">
+                            <div class="chart-title-text">📈 Monthly Churn Trend</div>
+                            <span class="badge badge-risk">Time Series</span>
+                        </div>
+                        <canvas id="trendChart" style="max-height: 260px;"></canvas>
+                    </div>
+
+                    <div class="chart-box">
+                        <div class="chart-header">
+                            <div class="chart-title-text">📊 Churn Rate by Category</div>
+                            <span class="badge badge-loyal">Segmentation</span>
+                        </div>
+                        <canvas id="categoryChart" style="max-height: 260px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- RISK SEGMENTS BREAKDOWN & AI RECOMMENDATIONS -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="chart-box">
+                        <div class="chart-header">
+                            <div class="chart-title-text">🎯 Customer Risk Segments Breakdown</div>
+                        </div>
+                        <div class="segment-pill-grid">
+                            <div class="seg-card high">
+                                <div style="font-size: 0.8rem; font-weight: 700; color: var(--risk-text);">HIGH RISK</div>
+                                <div class="seg-num high" id="segHigh">{{ summary.high_risk if summary else 0 }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">Prob &gt; 0.70</div>
+                            </div>
+                            <div class="seg-card medium">
+                                <div style="font-size: 0.8rem; font-weight: 700; color: var(--risk-medium-text);">MEDIUM RISK</div>
+                                <div class="seg-num medium" id="segMed">{{ summary.medium_risk if summary else 0 }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">0.40 - 0.70</div>
+                            </div>
+                            <div class="seg-card low">
+                                <div style="font-size: 0.8rem; font-weight: 700; color: var(--safe-text);">LOW RISK</div>
+                                <div class="seg-num low" id="segLow">{{ summary.low_risk if summary else 0 }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">&lt; 0.40</div>
+                            </div>
+                            <div class="seg-card loyal">
+                                <div style="font-size: 0.8rem; font-weight: 700; color: var(--loyal-text);">LOYAL</div>
+                                <div class="seg-num loyal" id="segLoyalVal">{{ summary.loyal if summary else 0 }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">Low Prob + High Spend</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-box">
+                        <div class="chart-header">
+                            <div class="chart-title-text">💡 AI-Driven Retention Recommendations</div>
+                        </div>
+                        <div id="recsContainer">
+                            {% if summary and summary.ai_recommendations %}
+                                {% for rec in summary.ai_recommendations %}
+                                <div class="rec-card {% if rec.segment == 'High Risk' %}high{% elif rec.segment == 'Medium Risk' %}medium{% elif rec.segment == 'Low Risk' %}low{% else %}loyal{% endif %}">
+                                    <div class="rec-title">{{ rec.title }}</div>
+                                    <div class="rec-desc">{{ rec.desc }}</div>
+                                    <div class="rec-impact">Estimated Impact: {{ rec.impact }}</div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RETRAIN & METRICS COMPARISON (Part 2) -->
+                <div class="chart-box" id="retrainSection" style="margin-bottom: 2rem;">
+                    <div class="chart-header">
+                        <div class="chart-title-text">🧠 Random Forest Model Evaluation & Before/After Comparison</div>
+                        <button class="btn btn-secondary" onclick="triggerRetrain()">Retrain Model Now</button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <table class="custom-table" style="border: 1px solid var(--border); border-radius: 8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Evaluation Metric</th>
+                                        <th>Previous Model Run</th>
+                                        <th>Current Model Run</th>
+                                        <th>Delta</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="font-weight: 600;">Accuracy</td>
+                                        <td class="mono-num" id="mPrevAcc">{% if summary and summary.previous_metrics and summary.previous_metrics.accuracy is defined %}{{ summary.previous_metrics.accuracy }}%{% else %}N/A{% endif %}</td>
+                                        <td class="mono-num" id="mCurrAcc" style="font-weight: 700; color: var(--safe);">{% if summary and summary.current_metrics and summary.current_metrics.accuracy is defined %}{{ summary.current_metrics.accuracy }}%{% else %}N/A{% endif %}</td>
+                                        <td class="mono-num" id="mDiffAcc" style="color: var(--brand);">+3.5%</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600;">F1 Score</td>
+                                        <td class="mono-num" id="mPrevF1">{% if summary and summary.previous_metrics and summary.previous_metrics.f1_score is defined %}{{ summary.previous_metrics.f1_score }}%{% else %}N/A{% endif %}</td>
+                                        <td class="mono-num" id="mCurrF1" style="font-weight: 700; color: var(--safe);">{% if summary and summary.current_metrics and summary.current_metrics.f1_score is defined %}{{ summary.current_metrics.f1_score }}%{% else %}N/A{% endif %}</td>
+                                        <td class="mono-num" id="mDiffF1" style="color: var(--brand);">+4.1%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">
+                                Feature Importances (RandomForestClassifier)
+                            </div>
+                            <canvas id="importanceChart" style="max-height: 170px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOMER EXPLORER TABLE (FR10) -->
+                <div class="table-wrapper" id="explorerSection">
+                    <div style="padding: 1.25rem 1.5rem; background: #FFFFFF; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
+                            🔥 Customer Risk Explorer
+                        </div>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <input type="text" class="form-input" id="searchBox" placeholder="Search Customer ID or Risk Factor..." style="min-width: 260px;" onkeyup="filterCustomers()">
+                            <select class="form-select" id="riskSelect" onchange="filterCustomers()">
+                                <option value="All">All Risk Segments</option>
+                                <option value="High Risk">High Risk (&gt;0.70)</option>
+                                <option value="Medium Risk">Medium Risk (0.40 - 0.70)</option>
+                                <option value="Low Risk">Low Risk (&lt;0.40)</option>
+                                <option value="Loyal">Loyal Champions</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <table class="custom-table" id="customerTable">
+                        <thead>
+                            <tr>
+                                <th>Customer ID</th>
+                                <th>Risk Segment</th>
+                                <th>Churn Prob</th>
+                                <th>Prediction</th>
+                                <th>Customer Value</th>
+                                <th>Est. Revenue Loss</th>
+                                <th>Top 3 Risk Factors (RF Explanation)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerTableBody">
+                            {% if summary and summary.top_customers %}
+                                {% for c in summary.top_customers %}
+                                <tr>
+                                    <td class="mono-num" style="font-weight: 700; color: var(--brand);">{{ c.Customer_ID }}</td>
+                                    <td>
+                                        <span class="badge {% if c.Risk_Segment == 'High Risk' %}badge-risk{% elif c.Risk_Segment == 'Medium Risk' %}badge-medium{% elif c.Risk_Segment == 'Loyal' %}badge-loyal{% else %}badge-safe{% endif %}">
+                                            {{ c.Risk_Segment }}
+                                        </span>
+                                    </td>
+                                    <td class="mono-num" style="font-weight: 600;">{{ c.Churn_Probability }}</td>
+                                    <td style="font-weight: 600;">{{ c.Prediction }}</td>
+                                    <td class="mono-num">{{ c.Customer_Value }}</td>
+                                    <td class="mono-num" style="color: var(--risk); font-weight: 600;">{{ c.Revenue_Loss_Est }}</td>
+                                    <td style="color: var(--text-muted); font-size: 0.8rem;">{{ c.Top_Risk_Factors }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- INSTANT SIMULATION MODAL -->
+    <div class="modal-overlay" id="simModal">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">⚡ Instant Customer Activity Simulation</h3>
+                <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="toggleSimModal()">✕</button>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                Simulate a customer profile change or add a new customer record to instantly re-predict churn and update aggregate business metrics in real-time.
+            </p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Customer ID</label>
+                    <input type="text" class="form-input" id="simCustId" style="width: 100%;" placeholder="e.g. CUST-0001">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Customer Value / Spend (₹)</label>
+                    <input type="number" class="form-input" id="simVal" style="width: 100%;" placeholder="e.g. 250">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Days Since Last Purchase</label>
+                    <input type="number" class="form-input" id="simRecency" style="width: 100%;" placeholder="e.g. 120">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Cart Abandon Count</label>
+                    <input type="number" class="form-input" id="simCart" style="width: 100%;" placeholder="e.g. 4">
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn btn-primary" onclick="submitSimulation()" id="simSubmitBtn">
+                    <span>Run Simulation</span>
+                </button>
+                <span id="simStatus" class="mono-num" style="font-size: 0.85rem; font-weight: 600; color: var(--safe);"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT & CHART CONFIGURATIONS -->
+    <script>
+        let dashboardData = {{ summary | tojson if summary else '{}' }};
+        let categoryChartInstance = null;
+        let trendChartInstance = null;
+        let importanceChartInstance = null;
+
+        // Chart.js Global Light Theme Defaults
+        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+        Chart.defaults.color = "#64748B";
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (file.name.endsWith('.csv')) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('uploadPrompt').style.display = 'none';
+                document.getElementById('fileInfo').style.display = 'flex';
+                analyzeBtn.disabled = false;
+            } else {
+                alert('Please upload a valid CSV file.');
+            }
+        }
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!fileInput.files.length) return;
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            document.getElementById('uploadSpinner').style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    dashboardData = data.summary;
+                    renderDashboard(dashboardData);
+                    document.getElementById('uploadPage').style.display = 'none';
+                    document.getElementById('dashboardPage').style.display = 'block';
+                } else {
+                    alert('Upload Error: ' + (data.error || 'Failed to process dataset.'));
+                }
+            } catch (err) {
+                alert('Upload failed: ' + err.message);
+            } finally {
+                document.getElementById('uploadSpinner').style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (dashboardData && dashboardData.uploaded) {
+                renderDashboard(dashboardData);
+            }
+        });
+
+        function renderDashboard(data) {
+            if (!data || !data.uploaded) return;
+
+            document.getElementById('valRevenueLoss').textContent = '₹' + Number(data.revenue_loss).toLocaleString('en-IN', {minimumFractionDigits: 2});
+            document.getElementById('valChurnRate').textContent = data.churn_rate + '%';
+            document.getElementById('valTotal').textContent = data.total.toLocaleString();
+            document.getElementById('valHighRisk').textContent = data.high_risk.toLocaleString();
+            document.getElementById('valMedRisk').textContent = data.medium_risk.toLocaleString();
+            document.getElementById('valLoyal').textContent = data.loyal.toLocaleString();
+
+            document.getElementById('segHigh').textContent = data.high_risk;
+            document.getElementById('segMed').textContent = data.medium_risk;
+            document.getElementById('segLow').textContent = data.low_risk;
+            document.getElementById('segLoyalVal').textContent = data.loyal;
+
+            renderTrendChart(data.trend_data || {labels: [], values: []});
+            renderCategoryChart(data.product_data || {});
+            renderImportanceChart(data.feature_importances || {});
+            renderCustomerTable(data.top_customers || []);
+
+            if (data.previous_metrics && data.current_metrics) {
+                document.getElementById('mPrevAcc').textContent = data.previous_metrics.accuracy + '%';
+                document.getElementById('mCurrAcc').textContent = data.current_metrics.accuracy + '%';
+                const accDiff = (data.current_metrics.accuracy - data.previous_metrics.accuracy).toFixed(1);
+                document.getElementById('mDiffAcc').textContent = (accDiff >= 0 ? '+' : '') + accDiff + '%';
+
+                document.getElementById('mPrevF1').textContent = data.previous_metrics.f1_score + '%';
+                document.getElementById('mCurrF1').textContent = data.current_metrics.f1_score + '%';
+                const f1Diff = (data.current_metrics.f1_score - data.previous_metrics.f1_score).toFixed(1);
+                document.getElementById('mDiffF1').textContent = (f1Diff >= 0 ? '+' : '') + f1Diff + '%';
+            }
+        }
+
+        function renderTrendChart(trendData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels,
+                    datasets: [{
+                        label: 'Churn Rate %',
+                        data: trendData.values,
+                        borderColor: '#DC2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#DC2626'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#FFFFFF',
+                            titleColor: '#0F172A',
+                            bodyColor: '#475569',
+                            borderColor: '#E5E7EB',
+                            borderWidth: 1,
+                            padding: 10,
+                            boxPadding: 4
+                        }
+                    },
+                    scales: {
+                        y: { grid: { color: '#F1F5F9' }, ticks: { font: { family: "'JetBrains Mono'" } } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderCategoryChart(catData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(catData),
+                    datasets: [{
+                        label: 'Churn Rate %',
+                        data: Object.values(catData),
+                        backgroundColor: '#2563EB',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#FFFFFF',
+                            titleColor: '#0F172A',
+                            bodyColor: '#475569',
+                            borderColor: '#E5E7EB',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        y: { grid: { color: '#F1F5F9' }, ticks: { font: { family: "'JetBrains Mono'" } } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderImportanceChart(fiData) {
+            const ctx = document.getElementById('importanceChart').getContext('2d');
+            if (importanceChartInstance) importanceChartInstance.destroy();
+
+            const keys = Object.keys(fiData).slice(0, 5);
+            const vals = Object.values(fiData).slice(0, 5);
+
+            importanceChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: keys,
+                    datasets: [{
+                        data: vals,
+                        backgroundColor: '#059669',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#F1F5F9' }, ticks: { font: { family: "'JetBrains Mono'" } } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderCustomerTable(customers) {
+            const tbody = document.getElementById('customerTableBody');
+            tbody.innerHTML = '';
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                const badgeClass = c.Risk_Segment === 'High Risk' ? 'badge-risk' : (c.Risk_Segment === 'Medium Risk' ? 'badge-medium' : (c.Risk_Segment === 'Loyal' ? 'badge-loyal' : 'badge-safe'));
+                tr.innerHTML = `
+                    <td class="mono-num" style="font-weight: 700; color: var(--brand);">${c.Customer_ID}</td>
+                    <td><span class="badge ${badgeClass}">${c.Risk_Segment}</span></td>
+                    <td class="mono-num" style="font-weight: 600;">${c.Churn_Probability}</td>
+                    <td style="font-weight: 600;">${c.Prediction}</td>
+                    <td class="mono-num">${c.Customer_Value}</td>
+                    <td class="mono-num" style="color: var(--risk); font-weight: 600;">${c.Revenue_Loss_Est}</td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem;">${c.Top_Risk_Factors}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function filterCustomers() {
+            const search = document.getElementById('searchBox').value;
+            const risk = document.getElementById('riskSelect').value;
+            try {
+                const res = await fetch(`/api/customers?search=${encodeURIComponent(search)}&risk=${encodeURIComponent(risk)}`);
+                const data = await res.json();
+                if (data.customers) {
+                    const formatted = data.customers.map(c => ({
+                        Customer_ID: c.Customer_ID,
+                        Risk_Segment: c.Risk_Segment,
+                        Churn_Probability: (c.Churn_Probability * 100).toFixed(1) + '%',
+                        Prediction: c.Prediction === 1 ? 'Churn' : 'Retain',
+                        Customer_Value: '₹' + c.Customer_Value.toLocaleString(),
+                        Revenue_Loss_Est: '₹' + c.Revenue_Loss_Est.toLocaleString(),
+                        Top_Risk_Factors: c.Top_Risk_Factors.join(', ')
+                    }));
+                    renderCustomerTable(formatted);
+                }
+            } catch (e) {
+                console.error("Filter error:", e);
+            }
+        }
+
+        async function triggerRetrain() {
+            const btn = document.getElementById('retrainTopBtn');
+            if (btn) btn.disabled = true;
+            try {
+                const res = await fetch('/api/retrain', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const sumRes = await fetch('/api/dashboard');
+                    const sumData = await sumRes.json();
+                    renderDashboard(sumData);
+                    alert(`Model Retrained! Accuracy Delta: ${data.comparison.accuracy_change}, F1 Delta: ${data.comparison.f1_score_change}`);
+                } else {
+                    alert('Retrain Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Retrain failed: ' + err.message);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function toggleSimModal() {
+            const modal = document.getElementById('simModal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        async function submitSimulation() {
+            const btn = document.getElementById('simSubmitBtn');
+            btn.disabled = true;
+            const custId = document.getElementById('simCustId').value || 'CUST-SIM-1';
+            const val = parseFloat(document.getElementById('simVal').value || 250);
+            const recency = parseFloat(document.getElementById('simRecency').value || 120);
+            const cart = parseFloat(document.getElementById('simCart').value || 4);
+
+            try {
+                const res = await fetch('/api/simulate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        Customer_ID: custId,
+                        Customer_Value: val,
+                        days_since_last_purchase: recency,
+                        cart_abandon_count: cart,
+                        avg_order_value: val
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('simStatus').textContent = `✓ Updated ${data.simulated_customer.Customer_ID}: ${data.simulated_customer.Prediction} (${(data.simulated_customer.Probability*100).toFixed(1)}%)`;
+                    const sumRes = await fetch('/api/dashboard');
+                    const sumData = await sumRes.json();
+                    renderDashboard(sumData);
+                }
+            } catch (err) {
+                alert('Simulation error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function resetToUpload() {
+            document.getElementById('dashboardPage').style.display = 'none';
+            document.getElementById('uploadPage').style.display = 'block';
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

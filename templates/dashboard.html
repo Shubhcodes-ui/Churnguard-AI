@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChurnGuard AI — Executive Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body style="background: var(--bg-page); padding: 2rem;">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="sidebar-brand-icon">⚡</div>
+                <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">ChurnGuard AI Dashboard</h1>
+            </div>
+            <a href="/" class="btn btn-secondary">⬅ Upload New Dataset</a>
+        </div>
+
+        <!-- HERO BANNER -->
+        <div class="hero-revenue-banner">
+            <div>
+                <div class="hero-revenue-label">Estimated Revenue Loss</div>
+                <div class="hero-revenue-amount">
+                    ₹{% if revenue_loss %}{{ "{:,.2f}".format(revenue_loss) }}{% else %}0.00{% endif %}
+                </div>
+            </div>
+            <div class="churn-gauge-pill">
+                <div class="churn-gauge-value">{{ churn_rate if churn_rate else 0 }}%</div>
+                <div class="churn-gauge-text">
+                    <div style="font-weight: 700; color: var(--text-primary);">Overall Churn Rate</div>
+                    <div>Dynamic Model Prediction</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAT CARDS -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Customers</div>
+                <div class="stat-value brand">{{ total if total else 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">High Risk</div>
+                <div class="stat-value risk">{{ high_risk if high_risk else 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Medium Risk</div>
+                <div class="stat-value medium">{{ medium_risk if medium_risk else 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Loyal Champions</div>
+                <div class="stat-value safe">{{ loyal if loyal else 0 }}</div>
+            </div>
+        </div>
+
+        <!-- CHARTS ROW -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <div class="card">
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; color: var(--text-primary);">Churn by Category</div>
+                <canvas id="categoryChart" style="max-height: 250px;"></canvas>
+            </div>
+            <div class="card">
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; color: var(--text-primary);">Monthly Churn Trend</div>
+                <canvas id="trendChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-wrapper">
+            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">
+                🔥 Top At-Risk Customers
+            </div>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Risk Segment</th>
+                        <th>Churn Prob</th>
+                        <th>Prediction</th>
+                        <th>Customer Value</th>
+                        <th>Est. Revenue Loss</th>
+                        <th>Top 3 Risk Factors</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if top_customers %}
+                        {% for c in top_customers %}
+                        <tr>
+                            <td class="mono-num" style="font-weight: 700; color: var(--brand);">{{ c.Customer_ID }}</td>
+                            <td>
+                                <span class="badge {% if c.Risk_Segment == 'High Risk' %}badge-risk{% elif c.Risk_Segment == 'Medium Risk' %}badge-medium{% elif c.Risk_Segment == 'Loyal' %}badge-loyal{% else %}badge-safe{% endif %}">
+                                    {{ c.Risk_Segment }}
+                                </span>
+                            </td>
+                            <td class="mono-num" style="font-weight: 600;">{{ c.Churn_Probability }}</td>
+                            <td style="font-weight: 600;">{{ c.Prediction }}</td>
+                            <td class="mono-num">{{ c.Customer_Value }}</td>
+                            <td class="mono-num" style="color: var(--risk); font-weight: 600;">{{ c.Revenue_Loss_Est }}</td>
+                            <td style="color: var(--text-muted); font-size: 0.8rem;">{{ c.Top_Risk_Factors }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+        Chart.defaults.color = "#64748B";
+
+        const productData = {{ product_data | tojson if product_data else '{}' }};
+        const trendData = {{ trend_data | tojson if trend_data else '{"labels":[], "values":[]}' }};
+
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(productData),
+                datasets: [{
+                    label: 'Churn Rate %',
+                    data: Object.values(productData),
+                    backgroundColor: '#2563EB',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#F1F5F9' }, ticks: { font: { family: "'JetBrains Mono'" } } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: trendData.labels || [],
+                datasets: [{
+                    label: 'Churn Rate %',
+                    data: trendData.values || [],
+                    borderColor: '#DC2626',
+                    backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#DC2626'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#F1F5F9' }, ticks: { font: { family: "'JetBrains Mono'" } } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

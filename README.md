@@ -2,69 +2,67 @@
 
 > E-Commerce Customer Churn Prediction & Segmentation Platform
 
-AI-powered SaaS platform that predicts customer churn, segments your customer base, and suggests targeted retention offers — built for e-commerce businesses.
-
-## Quick Start
-
-### Local Development
-
-**Backend:**
-```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Docker (Full Stack)
-```bash
-docker-compose up --build
-```
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
-## Demo Credentials
-Sign up with any email/password on first run. The system auto-seeds 3,000 demo customers so the dashboard is immediately populated.
+AI-powered Web Application that predicts customer churn, segments your customer base, and suggests targeted retention actions — built with Python, Flask, Scikit-Learn, Pandas, and NumPy.
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Churn Prediction** | LightGBM model scores each customer's churn probability |
-| **SHAP Explainability** | Top 3 reasons per customer driving churn risk |
-| **RFM Segmentation** | High-Value, Loyal, At-Risk, Dormant segments |
-| **Revenue at Risk** | Σ(churn_probability × CLV) hero metric |
-| **Batch Scoring** | Upload CSV of any size, scored in background |
-| **Retention Engine** | Auto-suggested discount/offer tiers per segment |
-| **Model Retraining** | Retrain on latest data, version comparison |
-| **Live Simulation** | Simulate customer events for real-time demo |
+| **Dynamic CSV Upload** | Upload custom customer dataset CSVs with automatic column detection |
+| **Churn Prediction** | RandomForestClassifier model scores each customer's churn risk probability |
+| **Customer Segmentation** | Dynamic segmentation into High-Value, At-Risk, Loyal, and Dormant segments |
+| **Revenue at Risk** | Total revenue at risk calculated across customer base |
+| **Interactive Dashboard** | Real-time analytics, risk distributions, and customer search/filter |
+| **Retention Recommendations** | Segment-based retention action strategies and offer suggestions |
+| **Model Retraining** | Interactive model retraining with accuracy and F1 score comparison |
+| **Scenario Simulation** | Simulate changes in customer attributes to forecast churn probability |
 
-## Architecture
+## Quick Start
 
-- **Backend**: FastAPI + SQLAlchemy + LightGBM + SHAP
-- **Frontend**: React + Vite + TailwindCSS + shadcn/ui + Recharts
-- **Database**: SQLite (dev) / PostgreSQL (docker/prod)
-- **Deployment**: Docker Compose (3 containers: api, db, frontend)
+### Installation & Local Setup
 
-## API Endpoints
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/Shubhcodes-ui/Churnguard-AI.git
+   cd Churnguard-AI
+   ```
+
+2. **Create & Activate Virtual Environment:**
+   ```bash
+   python -m venv venv
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
+   ```
+
+3. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Run Application:**
+   ```bash
+   python app.py
+   ```
+   Open your browser and navigate to `http://localhost:5050`.
+
+## Architecture & Stack
+
+- **Web Framework**: Flask (Python)
+- **Machine Learning**: Scikit-Learn (`RandomForestClassifier`)
+- **Data Processing**: Pandas, NumPy
+- **Templating & UI**: Jinja2 HTML templates, CSS, JavaScript
+- **State Management**: In-Memory Server-Side Session State Store
+
+## Core API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/auth/signup` | POST | Create account |
-| `/api/auth/login` | POST | Get JWT tokens |
-| `/api/predict` | POST | Single customer prediction |
-| `/api/predict/batch` | POST | Batch CSV upload + scoring |
-| `/api/segment` | GET | Segment summary |
-| `/api/metrics/dashboard` | GET | Dashboard hero metrics |
-| `/api/metrics/trends` | GET | Churn trends over time |
-| `/api/retention/suggestions` | GET | Auto-generated retention offers |
-| `/api/retrain` | POST | Retrain model on latest data |
-| `/api/simulate` | POST | Simulate live customer event |
+| `/` | GET | Landing page / Dataset Upload interface |
+| `/upload` | POST | Upload CSV dataset and initialize ML model |
+| `/dashboard` | GET | Main analytics dashboard and customer table |
+| `/api/customers` | GET | Customer data with filters and search |
+| `/api/simulate` | POST | Simulate customer feature changes for risk prediction |
+| `/api/retrain` | POST | Retrain RandomForest model and compare metrics |
+| `/api/health` | GET | System health check and dataset status |
